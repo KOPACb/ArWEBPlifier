@@ -1,4 +1,4 @@
-/* arwebplifier.pde - */
+/* arwebplifier.pde - example sketch for Webduino library */
 
 
 #include "SPI.h"
@@ -9,16 +9,18 @@
 /*
 Объявим переменные
 */
+// уровень звука
 int vol1 = 0;
 int vol1_t = 0;
+// аналоговое чтение уровня 
 int avol1 = 0;
 int avol1_t = 0;
 
-//mac address
+// CHANGE THIS TO YOUR OWN UNIQUE VALUE
 static uint8_t mac[6] = { 0x02, 0xAA, 0xBB, 0xCC, 0x00, 0x22 };
 
 // CHANGE THIS TO MATCH YOUR HOST NETWORK
-// static uint8_t ip[4] = { 172, 16, 0, 210 }; // area 51!
+static uint8_t ip[4] = { 172, 16, 0, 210 }; // area 51!
 
 /*Определим префикс и порт для Веб-сервера
 */
@@ -29,14 +31,8 @@ WebServer webserver(PREFIX, 80);
 Инициализируем наши пины
 */
 /* the piezo speaker on the Danger Shield is on PWM output pin #3 */
+//шимим шим на 3й-пин ( крутим мотор там или любую другую логеку )
 #define VPIN_1 3
-
-
-
-/* toggle is used to only turn on the speaker every other loop
-iteration. */
-char toggle = 0;
-
 
 /* This command is set as the default command for the server.  It
  * handles both GET and POST requests.  For a GET, it returns a simple
@@ -107,9 +103,6 @@ void volCmd(WebServer &server, WebServer::ConnectionType type, char *, bool)
   }
 }
 
-
-
-
 /*Изменяем громкость, в случае если крутилка была покручена
 */
 void volume_change()
@@ -124,11 +117,10 @@ void volume_change()
 
    if (vol1 != vol1_t) 
    {
-
        analogWrite(3,map(vol1, 0 , 8000, 0, 255));
+       vol1_t = vol1;
    }
 
-   vol1_t = vol1;
    Serial.println(21);
    Serial.println(avol1); 
    Serial.println(avol1_t);
@@ -136,8 +128,6 @@ void volume_change()
    Serial.println(vol1_t); 
    Serial.flush();
 }
-
-
 
 /*Настраиваем настройки для инициализации контроллера
 */
@@ -164,13 +154,9 @@ void setup()
 
 void loop()
 {
-  // process incoming connections one at a time forever
+  // process incoming connections one at a time forever5
   webserver.processConnection();
 
-  /* every other time through the loop, turn on and off the speaker if
-   * our delay isn't set to 0. */
-//  if ((++toggle & 1))
-//  {
+
    volume_change();
-//  }
 }
