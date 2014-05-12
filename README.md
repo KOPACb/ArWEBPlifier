@@ -1,4 +1,4 @@
 ArWEBPlifier
 ============
 
-arduino web amplifier
+arduino web amplifier controller
