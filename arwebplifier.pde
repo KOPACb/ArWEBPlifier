@@ -5,16 +5,24 @@
 #include "Ethernet.h"
 #include "WebServer.h"
 
+template<class T>
+inline Print &operator <<(Print &obj, T arg)
+{ obj.print(arg); return obj; }
+
 
 /*
 Объявим переменные
 */
-// уровень звука
 int vol1 = 0;
-int vol1_t = 0;
+//web уровень звука
+int dvol1 = 0;
+int dvol1_t = 0;
 // аналоговое чтение уровня 
 int avol1 = 0;
 int avol1_t = 0;
+unsigned long time = -1;
+// i-dle, a-nalog, d-igital
+char spin = 'i';
 
 // CHANGE THIS TO YOUR OWN UNIQUE VALUE
 static uint8_t mac[6] = { 0x02, 0xAA, 0xBB, 0xCC, 0x00, 0x22 };
@@ -55,14 +63,14 @@ void volCmd(WebServer &server, WebServer::ConnectionType type, char *, bool)
       /* this is a standard string comparison function.  It returns 0
        * when there's an exact match.  We're looking for a parameter
        * named "vol" here. */
-       if (strcmp(name, "/vol") == 0)
+       if (strcmp(name, "vol1") == 0)
 
       {
 	/* Преобразуем значемне переменной из строки в числовой значение по основанию 10 
          * use the STRing TO Unsigned Long function to turn the string
 	 * version of the delay number into our integer volDelay
 	 * variable */
-        vol1 = strtoul(value, NULL, 10);
+        dvol1 = strtoul(value, NULL, 10);
       }
     } while (repeat);
     
@@ -78,27 +86,29 @@ void volCmd(WebServer &server, WebServer::ConnectionType type, char *, bool)
   if (type == WebServer::GET)
   {
    /* store the HTML in program memory using the P macro */
-    P(message) = 
+    P(top) = 
                  "<!DOCTYPE html><html><head>"
                  "<title>Webduino AJAX voler Example</title>"
                  "<link href='http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/base/jquery-ui.css' rel=stylesheet />"
                  //"<meta http-equiv='Content-Script-Type' content='text/javascript'>"
                  "<script src='http://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js'></script>"
                  "<script src='http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js'></script>"
-                 "<style> #slider { margin: 10px; } </style>"
-                 "<script>"
-                           "function changevol(event, ui) { $('#indicator').text(ui.value); $.post('/vol', { vol: ui.value } ); }"
-                           "$(document).ready(function(){ $('#slider').slider({min: 0, max:8000, change:changevol}); });"
+                 "<style> #volume1 { margin: 10px; } </style>"
+                 "<script>";
+     server.printP(top);
+     server <<   "var volum1 = " << vol1 << ";";                           
+    P(bot) =     "function change1(event, ui) { jQuery.ajaxSetup({timeout: 110}); var id = $(this).attr('id'); if (id == 'volume1') $.post('/vol', { vol1: ui.value } );} "
+                 "$(document).ready(function(){ $('#volume1').slider({min: 0, max:255, change:change1}); });"
+                 
                  "</script>"
                  "</head>"
                  "<body style='font-size:62.5%;'>"
                  "<h1>Test the voler!</h1>"
-                 "<div id=slider></div>"
+                 "<div id=volume1></div>"
                  "<p id=indicator>0</p>"
                  "</body>"
                  "</html>";
-
-    server.printP(message);
+    server.printP(bot);
 
   }
 }
@@ -107,26 +117,51 @@ void volCmd(WebServer &server, WebServer::ConnectionType type, char *, bool)
 */
 void volume_change()
 {
+  if ( spin != 'i' )
+  {
+  Serial.println(spin);
+  }
+  if ( time != -1 )
+   {
+     if ( time <= millis() )
+     {
+     spin = 'i';
+     Serial.println(spin);
+     Serial.println(millis());
+
+     time = -1;
+     }
+   }
    avol1_t = avol1;
-   avol1 = analogRead(1);
+   avol1 = map(analogRead(1), 0,1024,0,10);
    if ( avol1 != avol1_t)
    {
-       analogWrite(3,map(avol1, 0 , 1024, 0, 255));
-       vol1 = map(avol1, 0 , 1024, 0, 8000);
+     if ( spin != 'd' )
+     {
+       vol1 = map(avol1, 0 , 10, 0, 255);
+       spin = 'a';
+     }
    }
-
-   if (vol1 != vol1_t) 
+   if ( avol1 == avol1_t) 
    {
-       analogWrite(3,map(vol1, 0 , 8000, 0, 255));
-       vol1_t = vol1;
+     if  ( spin == 'a' )
+      {
+       analogWrite(3,map(avol1, 0 , 10, 0, 255));
+       spin = 'i';
+     }
    }
-
-   Serial.println(21);
-   Serial.println(avol1); 
-   Serial.println(avol1_t);
-   Serial.println(vol1); 
-   Serial.println(vol1_t); 
-   Serial.flush();
+   if (dvol1 != dvol1_t) 
+   {
+     if ( spin != 'a' )
+     {
+       spin = 'd';
+       analogWrite(3,dvol1);
+       time = ( millis() + abs( dvol1 - vol1 ) * 1000);
+       dvol1_t = dvol1;
+       vol1 = dvol1;
+       Serial.println(millis());
+     }
+   }
 }
 
 /*Настраиваем настройки для инициализации контроллера
